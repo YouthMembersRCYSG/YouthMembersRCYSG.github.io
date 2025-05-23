@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>News and Media</title>
+  <style>
+    /* Basic reset & font */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    
+    /* Header */
+    header {
+      background-color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 5%;
+      border-bottom: 1px solid #ccc;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-placeholder {
+      width: 40px;
+      height: 40px;
+      background-color: #d3d3d3;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #444;
+    }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #333;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #999;
+    }
+    
+    /* Main content */
+    main {
+      width: 90%;
+      margin: 0 auto;
+      padding: 20px 0;
+    }
+    .page-title {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .page-title h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    /* Category Section (1) */
+    .category-section {
+      margin-bottom: 40px;
+    }
+    .category-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+    .category-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      /* Wrap on smaller screens */
+      flex-wrap: wrap;
+    }
+    
+    /* Large post on the left */
+    .large-post {
+      flex: 1 1 55%;
+      background-color: #f5f5f5;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 300px;
+    }
+    .large-post h3,
+    .large-post p {
+      margin-bottom: 10px;
+    }
+    .large-post button {
+      align-self: flex-start;
+      padding: 8px 16px;
+      background-color: #ef3b2d;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .large-post button:hover {
+      background-color: #c6291e;
+    }
+    
+    /* Four small posts on the right */
+    .small-posts {
+      flex: 1 1 40%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: space-between;
+    }
+    .small-post {
+      background-color: #f5f5f5;
+      width: calc(50% - 10px); /* 2 columns with a small gap */
+      min-height: 120px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .small-post p {
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+    .small-post button {
+      align-self: flex-start;
+      padding: 6px 12px;
+      background-color: #ef3b2d;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .small-post button:hover {
+      background-color: #c6291e;
+    }
+    
+    /* Category Section (2): Vertical list */
+    .list-posts {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .post-item {
+      display: flex;
+      gap: 20px;
+      background-color: #f5f5f5;
+      padding: 15px;
+    }
+    .image-placeholder {
+      width: 120px;
+      height: 80px;
+      background-color: #d3d3d3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #444;
+      flex-shrink: 0;
+    }
+    .post-details h3 {
+      margin-bottom: 8px;
+    }
+    .post-details p {
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+    .post-details button {
+      padding: 6px 12px;
+      background-color: #ef3b2d;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .post-details button:hover {
+      background-color: #c6291e;
+    }
+    
+    /* Footer */
+    footer {
+      border-top: 1px solid #ccc;
+      margin-top: 40px;
+      padding: 20px 5%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .footer-logo {
+      width: 40px;
+      height: 40px;
+      background-color: #d3d3d3;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #444;
+    }
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      font-size: 0.9rem;
+    }
+    .footer-links a {
+      text-decoration: none;
+      color: #333;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover {
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div class="logo-placeholder">+</div>
+      <span>Uniform Groups</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#happening">Happening Now</a>
+      <a href="#who">Who We Are</a>
+      <a href="#what">What We Do</a>
+      <a href="#contact">Contact Us</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Page Title -->
+    <div class="page-title">
+      <h1>News and Media</h1>
+    </div>
+
+    <!-- CATEGORY SECTION #1 -->
+    <section class="category-section">
+      <h2>Category</h2>
+      <div class="category-row">
+        <!-- Large Post -->
+        <div class="large-post">
+          <h3>Lorem ipsum dolor sit amet</h3>
+          <p>
+            Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor 
+            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+          </p>
+          <button>More</button>
+        </div>
+        
+        <!-- Small Posts -->
+        <div class="small-posts">
+          <div class="small-post">
+            <p>Brief text about something here.</p>
+            <button>More</button>
+          </div>
+          <div class="small-post">
+            <p>Another short description or news snippet.</p>
+            <button>More</button>
+          </div>
+          <div class="small-post">
+            <p>Additional short description or snippet.</p>
+            <button>More</button>
+          </div>
+          <div class="small-post">
+            <p>Additional short description or snippet.</p>
+            <button>More</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORY SECTION #2 -->
+    <section class="category-section">
+      <h2>Category</h2>
+      <div class="list-posts">
+        <article class="post-item">
+          <div class="image-placeholder">Pic</div>
+          <div class="post-details">
+            <h3>Lorem Ipsum dolor sit amet</h3>
+            <p>
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor 
+              incididunt ut labore et dolore magna aliqua.
+            </p>
+            <button>More</button>
+          </div>
+        </article>
+
+        <article class="post-item">
+          <div class="image-placeholder">Pic</div>
+          <div class="post-details">
+            <h3>Lorem Ipsum dolor sit amet</h3>
+            <p>
+              Curabitur vulputate nisl sit amet nulla ultrices, vel consectetur leo efficitur. 
+              Donec sed massa eu odio scelerisque faucibus.
+            </p>
+            <button>More</button>
+          </div>
+        </article>
+
+        <article class="post-item">
+          <div class="image-placeholder">Pic</div>
+          <div class="post-details">
+            <h3>Lorem Ipsum dolor sit amet</h3>
+            <p>
+              Nulla vehicula porta nisi a tristique. Praesent dapibus libero at turpis convallis 
+              vulputate.
+            </p>
+            <button>More</button>
+          </div>
+        </article>
+
+        <article class="post-item">
+          <div class="image-placeholder">Pic</div>
+          <div class="post-details">
+            <h3>Lorem Ipsum dolor sit amet</h3>
+            <p>
+              Maecenas accumsan ligula in sapien ornare rhoncus. Sed commodo eget ligula 
+              convallis ultricies.
+            </p>
+            <button>More</button>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-left">
+      <div class="footer-logo">+</div>
+      <span>Uniform Groups</span>
+    </div>
+    <div class="footer-links">
+      <a href="#stats">Stats Links</a>
+      <a href="#join">Join Us</a>
+      <a href="#contact">Contact Us</a>
+    </div>
+  </footer>
+</body>
+</html>
