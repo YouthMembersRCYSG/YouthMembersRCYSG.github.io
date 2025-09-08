@@ -154,6 +154,7 @@ async function fillVolunteerForm(index, volunteerId) {
 // Add new volunteer form
 function addVolunteerForm() {
     const container = document.getElementById('volunteerFormsContainer');
+    const defaultDate = document.getElementById('defaultDate').value;
     const defaultStartTime = document.getElementById('defaultStartTime').value;
     const defaultEndTime = document.getElementById('defaultEndTime').value;
     
@@ -213,8 +214,12 @@ function addVolunteerForm() {
                 </div>
             </div>
 
-            <!-- Individual Timing -->
+            <!-- Individual Date and Timing -->
             <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-control volunteer-date" name="date" required value="${defaultDate}">
+                </div>
                 <div class="col-md-4">
                     <label class="form-label">Start Time *</label>
                     <input type="time" class="form-control start-time" name="startTime" required value="${defaultStartTime}">
@@ -223,6 +228,9 @@ function addVolunteerForm() {
                     <label class="form-label">End Time *</label>
                     <input type="time" class="form-control end-time" name="endTime" required value="${defaultEndTime}">
                 </div>
+            </div>
+            
+            <div class="row mb-3">
                 <div class="col-md-4">
                     <label class="form-label">Hours Volunteered</label>
                     <input type="number" class="form-control hours-display" name="hoursVolunteered" step="0.5" min="0" readonly>
@@ -350,6 +358,28 @@ function updateDefaultTimes() {
     document.getElementById('defaultEndTime').setAttribute('data-previous-value', defaultEndTime);
 }
 
+// Update default date for all forms
+function updateDefaultDate() {
+    const defaultDate = document.getElementById('defaultDate').value;
+    
+    // Update all forms - apply to all forms unless they've been manually customized
+    const forms = document.querySelectorAll('.volunteer-form-item');
+    forms.forEach((form) => {
+        const dateInput = form.querySelector('.volunteer-date');
+        
+        // Check if the current value is empty or matches previous default
+        const currentDate = dateInput.value;
+        
+        // Update if empty or if it matches the previous default date
+        if (!currentDate || currentDate === document.getElementById('defaultDate').getAttribute('data-previous-value')) {
+            dateInput.value = defaultDate;
+        }
+    });
+    
+    // Store current value as previous for next change
+    document.getElementById('defaultDate').setAttribute('data-previous-value', defaultDate);
+}
+
 // Submit all volunteers
 async function submitAllVolunteers() {
     // Validate common fields
@@ -357,8 +387,7 @@ async function submitAllVolunteers() {
         district: document.getElementById('commonDistrict').value,
         eventName: document.getElementById('commonEventName').value,
         eventId: document.getElementById('commonEventId').value,
-        eventFormat: document.getElementById('commonEventFormat').value,
-        date: document.getElementById('commonDate').value
+        eventFormat: document.getElementById('commonEventFormat').value
     };
     
     // Check if all common fields are filled
@@ -382,6 +411,7 @@ async function submitAllVolunteers() {
             email: form.querySelector('input[name="email"]').value,
             mobileNo: form.querySelector('input[name="mobileNo"]').value,
             role: form.querySelector('select[name="role"]').value,
+            date: form.querySelector('input[name="date"]').value,
             startTime: form.querySelector('input[name="startTime"]').value,
             endTime: form.querySelector('input[name="endTime"]').value,
             hoursVolunteered: parseFloat(form.querySelector('input[name="hoursVolunteered"]').value) || 0,
@@ -391,7 +421,7 @@ async function submitAllVolunteers() {
         };
         
         // Validate required fields
-        const requiredFields = ['name', 'email', 'mobileNo', 'role', 'startTime', 'endTime'];
+        const requiredFields = ['name', 'email', 'mobileNo', 'role', 'date', 'startTime', 'endTime'];
         const missingFields = requiredFields.filter(field => !volunteerData[field]);
         
         if (missingFields.length > 0) {
@@ -1656,6 +1686,89 @@ function prefillVolunteerForm(name, email, phone) {
     showToast(`Added ${name} to registration form`, 'success');
 }
 
+// Toggle all sheets selection
+function toggleAllSheets() {
+    const selectAllCheckbox = document.getElementById('selectAllSheets');
+    const sheetCheckboxes = document.querySelectorAll('#sheetCheckboxes input[type="checkbox"]');
+    
+    sheetCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+// Preview selected sheets
+function previewSelectedSheets() {
+    const selectedSheets = getSelectedSheets();
+    
+    if (selectedSheets.length === 0) {
+        showToast('Please select at least one sheet', 'warning');
+        return;
+    }
+    
+    // Combine data from all selected sheets
+    let allVolunteers = [];
+    selectedSheets.forEach(sheetName => {
+        try {
+            const worksheet = currentWorkbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                header: 1,
+                defval: '',
+                blankrows: false
+            });
+            
+            // Find header row
+            let headerRowIndex = -1;
+            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+                const row = jsonData[i];
+                if (row.some(cell => 
+                    typeof cell === 'string' && 
+                    (cell.toLowerCase().includes('name') || cell.toLowerCase().includes('email'))
+                )) {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+            
+            if (headerRowIndex !== -1) {
+                const headers = jsonData[headerRowIndex];
+                const dataRows = jsonData.slice(headerRowIndex + 1);
+                
+                const sheetVolunteers = dataRows.map(row => {
+                    const obj = { _sheet: sheetName }; // Add sheet source
+                    headers.forEach((header, index) => {
+                        if (header && typeof header === 'string') {
+                            obj[header.trim()] = row[index] || '';
+                        }
+                    });
+                    return obj;
+                }).filter(row => {
+                    return Object.values(row).some(value => value && value.toString().trim() && value !== sheetName);
+                });
+                
+                allVolunteers = allVolunteers.concat(sheetVolunteers);
+            }
+        } catch (error) {
+            console.error(`Error processing sheet ${sheetName}:`, error);
+        }
+    });
+    
+    if (allVolunteers.length === 0) {
+        showToast('No volunteer data found in selected sheets', 'warning');
+        return;
+    }
+    
+    selectedSheetData = allVolunteers;
+    displayFilePreview(allVolunteers, `${selectedSheets.length} selected sheets`);
+    
+    showToast(`Combined ${allVolunteers.length} volunteers from ${selectedSheets.length} sheets`, 'success');
+}
+
+// Get selected sheet names
+function getSelectedSheets() {
+    const sheetCheckboxes = document.querySelectorAll('#sheetCheckboxes input[type="checkbox"]:checked');
+    return Array.from(sheetCheckboxes).map(checkbox => checkbox.value);
+}
+
 // Global variables for file processing
 let uploadedFileData = null;
 let currentWorkbook = null;
@@ -1805,26 +1918,45 @@ function displaySheetSelector() {
         // Only one sheet, process it directly
         processSelectedSheet(sheetNames[0]);
     } else {
-        // Multiple sheets, show selector
-        const sheetSelect = document.getElementById('sheetSelect');
+        // Multiple sheets, show checkbox selector
+        const sheetCheckboxes = document.getElementById('sheetCheckboxes');
         const sheetSelector = document.getElementById('sheetSelector');
         
-        sheetSelect.innerHTML = '<option value="">Select a sheet...</option>';
+        sheetCheckboxes.innerHTML = '';
         sheetNames.forEach(name => {
             // Try to parse date from sheet name
             const eventInfo = parseEventInfoFromSheetName(name);
             const displayName = eventInfo ? `${name} (${eventInfo.eventName})` : name;
-            sheetSelect.innerHTML += `<option value="${name}">${displayName}</option>`;
+            
+            const checkboxHtml = `
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" value="${name}" id="sheet_${name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                    <label class="form-check-label" for="sheet_${name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                        ${displayName}
+                    </label>
+                </div>
+            `;
+            sheetCheckboxes.innerHTML += checkboxHtml;
         });
         
         sheetSelector.style.display = 'block';
         document.getElementById('filePreview').style.display = 'block';
         
-        // Auto-select if only one valid event sheet
+        // Auto-select all event sheets
         const eventSheets = sheetNames.filter(name => parseEventInfoFromSheetName(name));
-        if (eventSheets.length === 1) {
-            sheetSelect.value = eventSheets[0];
-            processSelectedSheet(eventSheets[0]);
+        if (eventSheets.length > 0) {
+            eventSheets.forEach(sheetName => {
+                const checkbox = document.querySelector(`#sheetCheckboxes input[value="${sheetName}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            
+            // Update "Select All" checkbox state
+            const allCheckboxes = document.querySelectorAll('#sheetCheckboxes input[type="checkbox"]');
+            const checkedCheckboxes = document.querySelectorAll('#sheetCheckboxes input[type="checkbox"]:checked');
+            document.getElementById('selectAllSheets').checked = allCheckboxes.length === checkedCheckboxes.length;
+            
+            // Auto-preview if we have event sheets selected
+            previewSelectedSheets();
         }
     }
 }
@@ -1970,7 +2102,7 @@ function extractEventInfoFromFilename(filename) {
     if (eventInfo) {
         // Auto-fill event information
         document.getElementById('commonEventName').value = eventInfo.eventName;
-        document.getElementById('commonDate').value = eventInfo.date;
+        document.getElementById('defaultDate').value = eventInfo.date;
         document.getElementById('defaultStartTime').value = eventInfo.startTime;
         document.getElementById('defaultEndTime').value = eventInfo.endTime;
         
@@ -2008,6 +2140,23 @@ function importVolunteersFromFile() {
         const mobile = getColumnValue(row, ['Mobile Number', 'Mobile', 'Phone', 'Contact']);
         const role = getColumnValue(row, ['Role', 'Position', 'Job']);
         
+        // Extract event info from sheet name if available
+        let eventDate = '';
+        let eventName = '';
+        if (row._sheet) {
+            const eventInfo = parseEventInfoFromSheetName(row._sheet);
+            if (eventInfo) {
+                eventDate = eventInfo.date;
+                eventName = eventInfo.eventName;
+                
+                // Auto-fill common event info if first volunteer
+                if (index === 0) {
+                    document.getElementById('commonEventName').value = eventName || row._sheet;
+                    document.getElementById('defaultDate').value = eventDate;
+                }
+            }
+        }
+        
         if (name && (email || mobile)) {
             // Add volunteer form
             if (index > 0) addVolunteerForm();
@@ -2021,10 +2170,13 @@ function importVolunteersFromFile() {
                 const emailInput = form.querySelector('[name="email"]');
                 const mobileInput = form.querySelector('[name="mobileNo"]');
                 const roleInput = form.querySelector('[name="role"]');
+                const dateInput = form.querySelector('[name="date"]');
                 
                 if (nameInput) nameInput.value = name;
                 if (emailInput) emailInput.value = email;
                 if (mobileInput) mobileInput.value = mobile;
+                if (dateInput && eventDate) dateInput.value = eventDate;
+                
                 if (roleInput && role) {
                     // Try to match role with dropdown options
                     const options = Array.from(roleInput.options);
