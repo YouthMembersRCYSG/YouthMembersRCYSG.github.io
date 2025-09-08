@@ -7,6 +7,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="styles.css" rel="stylesheet">
+    
+    <!-- Excel and CSV parsing libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -22,58 +26,54 @@
         <!-- Navigation Tabs -->
         <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="form-tab" data-bs-toggle="tab" data-bs-target="#form-panel" type="button" role="tab">
-                    <i class="fas fa-user-plus me-2"></i>Add/Update Volunteer
+                <button class="nav-link active" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration-panel" type="button" role="tab">
+                    <i class="fas fa-user-plus me-2"></i>Registration
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="list-tab" data-bs-toggle="tab" data-bs-target="#list-panel" type="button" role="tab">
-                    <i class="fas fa-list me-2"></i>Volunteer List
+                <button class="nav-link" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance-panel" type="button" role="tab">
+                    <i class="fas fa-check-circle me-2"></i>Attendance Taking
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf-panel" type="button" role="tab">
-                    <i class="fas fa-file-pdf me-2"></i>Generate PDF
+                <button class="nav-link" id="pdf-generation-tab" data-bs-toggle="tab" data-bs-target="#pdf-generation-panel" type="button" role="tab">
+                    <i class="fas fa-file-pdf me-2"></i>PDF Generation
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="summary-mastersheet-tab" data-bs-toggle="tab" data-bs-target="#summary-mastersheet-panel" type="button" role="tab">
+                    <i class="fas fa-chart-bar me-2"></i>Summary Mastersheet
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="main-mastersheet-tab" data-bs-toggle="tab" data-bs-target="#main-mastersheet-panel" type="button" role="tab">
+                    <i class="fas fa-table me-2"></i>Main Mastersheet
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="individual-report-tab" data-bs-toggle="tab" data-bs-target="#individual-report-panel" type="button" role="tab">
+                    <i class="fas fa-user-chart me-2"></i>Individual Report
                 </button>
             </li>
         </ul>
 
         <div class="tab-content mt-3" id="mainTabContent">
-            <!-- Volunteer Form Panel -->
-            <div class="tab-pane fade show active" id="form-panel" role="tabpanel">
+            <!-- Registration Panel -->
+            <div class="tab-pane fade show active" id="registration-panel" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-user-edit me-2"></i>
-                            <span id="form-title">Add New Volunteer</span>
+                            <i class="fas fa-user-plus me-2"></i>Volunteer Registration
                         </h5>
                     </div>
                     <div class="card-body">
-                        <!-- Search for existing volunteer -->
-                        <div class="row mb-3">
-                            <div class="col-md-8">
-                                <label for="volunteerSearch" class="form-label">Search Existing Volunteer</label>
-                                <input type="text" class="form-control" id="volunteerSearch" 
-                                       placeholder="Search by name, email, or mobile number...">
-                                <div id="searchResults" class="search-results"></div>
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-secondary w-100" onclick="clearForm()">
-                                    <i class="fas fa-broom me-2"></i>Clear Form
-                                </button>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <form id="volunteerForm">
-                            <input type="hidden" id="volunteerId">
-                            
-                            <!-- Event Information -->
-                            <div class="row mb-3">
+                        <!-- Event Information (Common for all volunteers) -->
+                        <div class="alert alert-primary">
+                            <h6 class="alert-heading">Event Information (applies to all volunteers)</h6>
+                            <div class="row">
                                 <div class="col-md-6">
-                                    <label for="district" class="form-label">District *</label>
-                                    <select class="form-select" id="district" required>
+                                    <label for="commonDistrict" class="form-label">District *</label>
+                                    <select class="form-select" id="commonDistrict" required>
                                         <option value="">Select District</option>
                                         <option value="District 1">District 1</option>
                                         <option value="District 2">District 2</option>
@@ -83,235 +83,547 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="eventName" class="form-label">Event Name *</label>
-                                    <input type="text" class="form-control" id="eventName" required>
+                                    <label for="commonEventName" class="form-label">Event Name *</label>
+                                    <input type="text" class="form-control" id="commonEventName" required>
                                 </div>
                             </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <label for="eventId" class="form-label">Event ID *</label>
-                                    <input type="text" class="form-control" id="eventId" required>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label for="commonEventId" class="form-label">Event ID *</label>
+                                    <input type="text" class="form-control" id="commonEventId" required>
                                 </div>
-                                <div class="col-md-4">
-                                    <label for="eventFormat" class="form-label">Event Format *</label>
-                                    <select class="form-select" id="eventFormat" required>
+                                <div class="col-md-6">
+                                    <label for="commonEventFormat" class="form-label">Event Format *</label>
+                                    <select class="form-select" id="commonEventFormat" required>
                                         <option value="">Select Format</option>
                                         <option value="Physical">Physical</option>
                                         <option value="Virtual">Virtual</option>
                                         <option value="Hybrid">Hybrid</option>
                                     </select>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Default Information -->
+                        <div class="alert alert-secondary">
+                            <h6 class="alert-heading">Default Settings (can be customized per volunteer)</h6>
+                            <div class="row">
                                 <div class="col-md-4">
-                                    <label for="date" class="form-label">Date *</label>
-                                    <input type="date" class="form-control" id="date" required>
+                                    <label for="defaultDate" class="form-label">Default Date</label>
+                                    <input type="date" class="form-control" id="defaultDate">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="defaultStartTime" class="form-label">Default Start Time</label>
+                                    <input type="time" class="form-control" id="defaultStartTime" value="09:00">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="defaultEndTime" class="form-label">Default End Time</label>
+                                    <input type="time" class="form-control" id="defaultEndTime" value="17:00">
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label for="details" class="form-label">Event Details</label>
-                                    <textarea class="form-control" id="details" rows="2"></textarea>
+                        <!-- CSV/Excel Upload Section -->
+                        <div class="alert alert-success">
+                            <h6 class="alert-heading"><i class="fas fa-file-excel me-2"></i>Bulk Upload from Excel/CSV</h6>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <input type="file" class="form-control" id="csvFile" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(event)">
+                                    <small class="text-muted">Upload Excel (.xlsx, .xls) or CSV file with volunteer data</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="excelPassword" placeholder="Excel Password (if protected)" style="display:none;">
+                                        <button type="button" class="btn btn-success" id="processFileBtn" onclick="processUploadedFile()" style="display:none;">
+                                            <i class="fas fa-upload me-1"></i>Process File
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                            <div id="filePreview" class="mt-3" style="display:none;">
+                                <h6>File Preview:</h6>
+                                <div class="alert alert-warning">
+                                    <div id="sheetSelector" style="display:none;">
+                                        <label class="form-label">Select Event Sheets:</label>
+                                        <div class="mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="selectAllSheets" onchange="toggleAllSheets()">
+                                                <label class="form-check-label" for="selectAllSheets">
+                                                    <strong>Select All Sheets</strong>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div id="sheetCheckboxes" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                            <!-- Checkboxes will be populated here -->
+                                        </div>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="previewSelectedSheets()">
+                                                <i class="fas fa-eye me-1"></i>Preview Selected Sheets
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="passwordPrompt" style="display:none;">
+                                        <div class="alert alert-info">This Excel file is password protected. Please enter the password below:</div>
+                                    </div>
+                                </div>
+                                <div class="table-responsive" style="max-height: 300px;">
+                                    <table class="table table-sm" id="previewTable">
+                                        <thead class="table-dark">
+                                            <tr id="previewHeaders"></tr>
+                                        </thead>
+                                        <tbody id="previewBody"></tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-primary" onclick="importVolunteersFromFile()">
+                                        <i class="fas fa-download me-1"></i>Import All Volunteers
+                                    </button>
+                                    <button type="button" class="btn btn-secondary ms-2" onclick="clearFileUpload()">
+                                        <i class="fas fa-times me-1"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
-                            <!-- Volunteer Information -->
-                            <h6 class="border-bottom pb-2 mb-3">Volunteer Information</h6>
-                            
-                            <div class="row mb-3">
+                        <!-- Search Available Volunteers -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="fas fa-search me-2"></i>Search Available Volunteers</h6>
+                            <div class="row">
                                 <div class="col-md-6">
-                                    <label for="name" class="form-label">Name *</label>
-                                    <input type="text" class="form-control" id="name" required>
+                                    <input type="text" class="form-control" id="searchVolunteers" placeholder="Search by name, email, or phone...">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="email" class="form-label">Email *</label>
-                                    <input type="email" class="form-control" id="email" required>
+                                    <button type="button" class="btn btn-primary" onclick="searchAvailableVolunteers()">
+                                        <i class="fas fa-search me-1"></i>Search
+                                    </button>
+                                    <button type="button" class="btn btn-secondary ms-2" onclick="clearVolunteerSearch()">
+                                        <i class="fas fa-times me-1"></i>Clear
+                                    </button>
                                 </div>
                             </div>
+                            <div id="searchResults" class="mt-3" style="display: none;">
+                                <h6>Search Results:</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Phone</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="searchResultsBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
 
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="mobileNo" class="form-label">Mobile Number *</label>
-                                    <input type="tel" class="form-control" id="mobileNo" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="role" class="form-label">Role *</label>
-                                    <select class="form-select" id="role" required>
-                                        <option value="">Select Role</option>
-                                        <option value="Registration">Registration</option>
-                                        <option value="Usher">Usher</option>
-                                        <option value="Security">Security</option>
-                                        <option value="Logistics">Logistics</option>
-                                        <option value="Photography">Photography</option>
-                                        <option value="Technical Support">Technical Support</option>
-                                        <option value="First Aid">First Aid</option>
-                                        <option value="General Helper">General Helper</option>
-                                    </select>
-                                </div>
-                            </div>
+                        <hr>
 
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="startTime" class="form-label">Start Time *</label>
-                                    <input type="time" class="form-control" id="startTime" required>
+                        <!-- Volunteer Registration Forms -->
+                        <div id="volunteerFormsContainer">
+                            <!-- First volunteer form -->
+                            <div class="volunteer-form-item border rounded p-3 mb-3" data-index="0">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">Volunteer #1</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVolunteerForm(0)" style="display: none;">
+                                        <i class="fas fa-trash"></i> Remove
+                                    </button>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="endTime" class="form-label">End Time *</label>
-                                    <input type="time" class="form-control" id="endTime" required>
-                                </div>
-                            </div>
 
-                            <!-- Additional Information -->
-                            <h6 class="border-bottom pb-2 mb-3">Additional Information</h6>
-                            
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <label for="vms" class="form-label">VMS</label>
-                                    <select class="form-select" id="vms">
-                                        <option value="false">No</option>
-                                        <option value="true">Yes</option>
-                                    </select>
+                                <!-- Search for existing volunteer -->
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">Search Existing Volunteer (Auto-fill)</label>
+                                        <input type="text" class="form-control volunteer-search" 
+                                               placeholder="Search by name, email, or mobile number..." data-index="0">
+                                        <div class="search-results" data-index="0"></div>
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <button type="button" class="btn btn-secondary w-100" onclick="clearVolunteerForm(0)">
+                                            <i class="fas fa-broom me-2"></i>Clear
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="attendance" class="form-label">Attendance</label>
-                                    <select class="form-select" id="attendance">
-                                        <option value="attended">Attended</option>
-                                        <option value="no show">No Show</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="remarks" class="form-label">Remarks</label>
-                                    <select class="form-select" id="remarks">
-                                        <option value="">None</option>
-                                        <option value="Warning">Warning</option>
-                                        <option value="Blacklist">Blacklist</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="volunteerShirtTaken" class="form-label">Volunteer Shirt</label>
-                                    <select class="form-select" id="volunteerShirtTaken" onchange="toggleShirtSize()">
-                                        <option value="false">Not Taken</option>
-                                        <option value="true">Taken</option>
-                                    </select>
-                                </div>
-                            </div>
 
-                            <div class="row mb-3" id="shirtSizeRow" style="display: none;">
-                                <div class="col-md-3">
-                                    <label for="shirtSize" class="form-label">Shirt Size</label>
-                                    <select class="form-select" id="shirtSize">
-                                        <option value="">Select Size</option>
-                                        <option value="XS">XS</option>
-                                        <option value="S">S</option>
-                                        <option value="M">M</option>
-                                        <option value="L">L</option>
-                                        <option value="XL">XL</option>
-                                        <option value="XXL">XXL</option>
-                                    </select>
+                                <!-- Volunteer Information -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Full Name *</label>
+                                        <input type="text" class="form-control" name="name" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email *</label>
+                                        <input type="email" class="form-control" name="email" required>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Mobile Number *</label>
+                                        <input type="tel" class="form-control" name="mobileNo" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Role *</label>
+                                        <select class="form-select" name="role" required>
+                                            <option value="">Select Role</option>
+                                            <option value="Registration">Registration</option>
+                                            <option value="Usher">Usher</option>
+                                            <option value="Technical Support">Technical Support</option>
+                                            <option value="Photography">Photography</option>
+                                            <option value="Logistics">Logistics</option>
+                                            <option value="Crowd Control">Crowd Control</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Individual Date and Timing -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Date *</label>
+                                        <input type="date" class="form-control volunteer-date" name="date" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Start Time *</label>
+                                        <input type="time" class="form-control start-time" name="startTime" required value="09:00">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">End Time *</label>
+                                        <input type="time" class="form-control end-time" name="endTime" required value="17:00">
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hours Volunteered</label>
+                                        <input type="number" class="form-control hours-display" name="hoursVolunteered" step="0.5" min="0" readonly>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Save Volunteer
-                                </button>
-                            </div>
-                        </form>
+                        <!-- Add/Submit Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <button type="button" class="btn btn-outline-primary" onclick="addVolunteerForm()">
+                                <i class="fas fa-plus me-2"></i>Add Another Volunteer
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg" onclick="submitAllVolunteers()">
+                                <i class="fas fa-save me-2"></i>Register All Volunteers
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Volunteer List Panel -->
-            <div class="tab-pane fade" id="list-panel" role="tabpanel">
+            <!-- Attendance Panel -->
+            <div class="tab-pane fade" id="attendance-panel" role="tabpanel">
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-users me-2"></i>Volunteer List
+                            <i class="fas fa-check-circle me-2"></i>Attendance Taking
                         </h5>
-                        <button class="btn btn-primary btn-sm" onclick="loadVolunteers()">
-                            <i class="fas fa-sync-alt me-2"></i>Refresh
-                        </button>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>S/N</th>
-                                        <th>Name</th>
-                                        <th>Event</th>
-                                        <th>Date</th>
-                                        <th>Role</th>
-                                        <th>Mobile</th>
-                                        <th>Email</th>
-                                        <th>Attendance</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="volunteerTableBody">
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <!-- Event ID Input -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="attendanceEventId" class="form-label">Event ID *</label>
+                                <input type="text" class="form-control" id="attendanceEventId" placeholder="Enter Event ID">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="button" class="btn btn-primary w-100" onclick="loadAttendanceByEventId()">
+                                    <i class="fas fa-search me-2"></i>Load Attendance
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Event Info Display -->
+                        <div id="eventInfo" class="alert alert-info" style="display: none;">
+                            <h6 class="mb-2">Event Information</h6>
+                            <div id="eventDetails"></div>
+                        </div>
+
+                        <!-- Volunteers Table -->
+                        <div id="attendanceTableContainer" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>S/N</th>
+                                            <th>Name</th>
+                                            <th>Role</th>
+                                            <th>Time</th>
+                                            <th>Attendance</th>
+                                            <th>Shirt Taken</th>
+                                            <th>Shirt Size</th>
+                                            <th>Remarks</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="attendanceTableBody">
+                                        <!-- Dynamic content -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- PDF Generation Panel -->
-            <div class="tab-pane fade" id="pdf-panel" role="tabpanel">
+            <div class="tab-pane fade" id="pdf-generation-panel" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-file-pdf me-2"></i>Generate Attendance PDF
+                            <i class="fas fa-file-pdf me-2"></i>Generate PDF Mastersheet
                         </h5>
                     </div>
                     <div class="card-body">
-                        <form id="pdfForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="pdfEventId" class="form-label">Event ID *</label>
-                                    <input type="text" class="form-control" id="pdfEventId" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="pdfEventName" class="form-label">Event Name *</label>
-                                    <input type="text" class="form-control" id="pdfEventName" required>
-                                </div>
+                        <!-- Event ID Input -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="pdfEventId" class="form-label">Event ID *</label>
+                                <input type="text" class="form-control" id="pdfEventId" placeholder="Enter Event ID">
                             </div>
-                            
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="pdfDate" class="form-label">Event Date *</label>
-                                    <input type="date" class="form-control" id="pdfDate" required>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <button type="submit" class="btn btn-danger">
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="button" class="btn btn-success w-100" onclick="generatePDFSimple()">
                                     <i class="fas fa-file-pdf me-2"></i>Generate PDF
                                 </button>
                             </div>
-                        </form>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">Instructions</h6>
+                            <ul class="mb-0">
+                                <li>Enter the Event ID to generate the attendance mastersheet</li>
+                                <li>The PDF will include all registered volunteers for that event</li>
+                                <li>The file will be downloaded automatically</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Mastersheet Panel -->
+            <div class="tab-pane fade" id="summary-mastersheet-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Summary Mastersheet
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Load All Events Button -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="summaryEventId" class="form-label">Event ID (Optional - leave blank for all events)</label>
+                                <input type="text" class="form-control" id="summaryEventId" placeholder="Enter Event ID or leave blank for all">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="button" class="btn btn-primary w-100" onclick="loadSummaryMastersheet()">
+                                    <i class="fas fa-search me-2"></i>Load Summary
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Summary Display -->
+                        <div id="summaryContainer" style="display: none;">
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="alert alert-primary">
+                                        <h6 class="alert-heading">Event Summary</h6>
+                                        <div id="summaryEventInfo"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Total Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="summaryTableBody">
+                                        <!-- Dynamic content -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                                <button type="button" class="btn btn-success" onclick="downloadSummaryPDF()">
+                                    <i class="fas fa-download me-2"></i>Download Summary PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Mastersheet Panel -->
+            <div class="tab-pane fade" id="main-mastersheet-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-table me-2"></i>Main Mastersheet
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Load All Events Button -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="mainEventId" class="form-label">Event ID (Optional - leave blank for all events)</label>
+                                <input type="text" class="form-control" id="mainEventId" placeholder="Enter Event ID or leave blank for all">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="button" class="btn btn-primary w-100" onclick="loadMainMastersheet()">
+                                    <i class="fas fa-search me-2"></i>Load Main Mastersheet
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Main Mastersheet Display -->
+                        <div id="mainContainer" style="display: none;">
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="alert alert-success">
+                                        <h6 class="alert-heading">Complete Event Details</h6>
+                                        <div id="mainEventInfo"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-sm">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>S/N</th>
+                                            <th>Event ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Mobile</th>
+                                            <th>Role</th>
+                                            <th>Start Time</th>
+                                            <th>End Time</th>
+                                            <th>Hours</th>
+                                            <th>Attendance</th>
+                                            <th>Shirt Taken</th>
+                                            <th>Shirt Size</th>
+                                            <th>Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mainTableBody">
+                                        <!-- Dynamic content -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                                <button type="button" class="btn btn-success" onclick="downloadMainPDF()">
+                                    <i class="fas fa-download me-2"></i>Download Full Details PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Report Panel -->
+            <div class="tab-pane fade" id="individual-report-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user-chart me-2"></i>Individual Volunteer Report
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Search Volunteer -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="individualName" class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="individualName" placeholder="Enter full name">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="individualPhone" class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="individualPhone" placeholder="Enter phone number">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="individualEmail" class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" id="individualEmail" placeholder="Enter email address">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12 d-flex justify-content-center">
+                                <button type="button" class="btn btn-primary btn-lg" onclick="searchIndividualReport()">
+                                    <i class="fas fa-search me-2"></i>Search Volunteer History
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Individual Report Display -->
+                        <div id="individualReportContainer" style="display: none;">
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="alert alert-success">
+                                        <h6 class="alert-heading">Volunteer Profile</h6>
+                                        <div id="individualInfo"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Event ID</th>
+                                            <th>Event Name</th>
+                                            <th>Date</th>
+                                            <th>Role</th>
+                                            <th>Hours Volunteered</th>
+                                            <th>Attendance</th>
+                                            <th>Start Time</th>
+                                            <th>End Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="individualReportTableBody">
+                                        <!-- Dynamic content -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                                <button type="button" class="btn btn-success" onclick="downloadIndividualReport()">
+                                    <i class="fas fa-download me-2"></i>Download Individual Report PDF
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">Instructions</h6>
+                            <ul class="mb-0">
+                                <li>Enter the volunteer's full name, phone number, and email address</li>
+                                <li>All three fields must match exactly with records in the system</li>
+                                <li>The system will show all events this volunteer has participated in</li>
+                                <li>Download a comprehensive PDF report of their volunteer history</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Loading Modal -->
-    <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 mb-0">Processing...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
     <script src="script.js"></script>
 </body>
 </html>

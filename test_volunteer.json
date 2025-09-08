@@ -1,0 +1,13 @@
+{
+  "district": "District 1",
+  "eventName": "Test Event",
+  "eventId": "E1",
+  "eventFormat": "Physical",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "mobileNo": "12345678",
+  "role": "General Helper",
+  "date": "2025-09-08",
+  "startTime": "09:00",
+  "endTime": "12:00"
+}

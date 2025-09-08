@@ -1,0 +1,17 @@
+{
+  "district": "District 2",
+  "eventName": "Test Event",
+  "eventId": "E3",
+  "eventFormat": "In-Person",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "mobileNo": "12345678",
+  "role": "Registration",
+  "date": "2025-09-08",
+  "startTime": "10:00",
+  "endTime": "16:00",
+  "hoursVolunteered": 6,
+  "vms": false,
+  "attendance": "attended",
+  "remarks": "Test duplicate"
+}

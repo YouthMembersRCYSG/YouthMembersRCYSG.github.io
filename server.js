@@ -10,7 +10,7 @@ const moment = require('moment');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4001;
 
 // Middleware
 app.use(cors());
@@ -58,8 +58,7 @@ const volunteerSchema = new mongoose.Schema({
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     hoursVolunteered: { type: Number, required: true },
-    vms: { type: Boolean, default: false },
-    attendance: { type: String, enum: ['attended', 'no show'], default: 'attended' },
+    attendance: { type: String, enum: ['registered', 'attended', 'no show'], default: 'registered' },
     remarks: { type: String, enum: ['', 'Warning', 'Blacklist'], default: '' },
     volunteerShirtTaken: { type: Boolean, default: false },
     shirtSize: { type: String },
@@ -90,6 +89,69 @@ const Volunteer = mongoose.model('Volunteer', volunteerSchema);
 
 // Routes
 
+// File upload/decrypt endpoint dependencies
+const multer = require('multer');
+const { execFile } = require('child_process');
+const XLSX = require('xlsx');
+
+// Multer setup for temp uploads
+const upload = multer({ dest: path.join(__dirname, 'tmp_uploads') });
+
+// Helper to run msoffcrypto-tool to decrypt an office file using password
+async function decryptOfficeFile(inputPath, outputPath, password) {
+    return new Promise((resolve, reject) => {
+        // Use msoffcrypto-tool CLI which must be installed on the host
+        const args = ['-p', password, inputPath, outputPath];
+        execFile('msoffcrypto-tool', args, (error, stdout, stderr) => {
+            if (error) {
+                return reject(new Error(stderr || stdout || error.message));
+            }
+            resolve();
+        });
+    });
+}
+
+// Endpoint: Accept encrypted Excel and password, return parsed sheet data
+app.post('/api/unlock-and-parse', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        const password = req.body.password || '';
+        const inputPath = req.file.path;
+        const outputPath = path.join(path.dirname(inputPath), `${req.file.filename}_decrypted.xlsx`);
+
+        try {
+            await decryptOfficeFile(inputPath, outputPath, password);
+        } catch (err) {
+            // Clean up upload
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            return res.status(400).json({ error: 'Decryption failed: ' + err.message });
+        }
+
+        // Parse decrypted workbook using SheetJS on server
+        try {
+            const workbook = XLSX.readFile(outputPath, { cellDates: true });
+            const sheets = workbook.SheetNames.map(name => {
+                const ws = workbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                return { name, rows };
+            });
+
+            // Clean up temp files
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            try { fs.unlinkSync(outputPath); } catch (e) {}
+
+            return res.json({ sheets });
+        } catch (err) {
+            // Clean up and report
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            try { fs.unlinkSync(outputPath); } catch (e) {}
+            return res.status(500).json({ error: 'Failed to parse decrypted workbook: ' + err.message });
+        }
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 // Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -107,7 +169,14 @@ app.all(/^\/api\/volunteer(?=\/|$)/, (req, res) => {
 // Get all volunteers
 app.get('/api/volunteers', async (req, res) => {
     try {
-        const volunteers = await Volunteer.find().sort({ serialNumber: -1 });
+        const { eventId } = req.query;
+        let filter = {};
+        
+        if (eventId) {
+            filter.eventId = eventId;
+        }
+        
+        const volunteers = await Volunteer.find(filter).sort({ serialNumber: 1 });
         res.json(volunteers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -192,43 +261,50 @@ app.post('/api/volunteers', async (req, res) => {
     }
 });
 
-// Update volunteer
+// Update volunteer (supports partial updates)
 app.put('/api/volunteers/:id', async (req, res) => {
     try {
         const volunteerData = req.body;
         
-        // Input validation
-        if (!volunteerData.startTime || !volunteerData.endTime) {
-            return res.status(400).json({ error: 'Start time and end time are required' });
+        // Get existing volunteer to merge with updates
+        const existingVolunteer = await Volunteer.findById(req.params.id);
+        if (!existingVolunteer) {
+            return res.status(404).json({ error: 'Volunteer not found' });
         }
         
-        // Calculate hours volunteered with cross-midnight handling
-        const start = moment(volunteerData.startTime, 'HH:mm');
-        const end = moment(volunteerData.endTime, 'HH:mm');
+        // Merge existing data with updates
+        const updatedData = { ...existingVolunteer.toObject(), ...volunteerData };
         
-        let hoursVolunteered = end.diff(start, 'hours', true);
-        
-        // Handle cross-midnight scenarios
-        if (hoursVolunteered < 0) {
-            hoursVolunteered = hoursVolunteered + 24;
+        // Only validate startTime and endTime if they are being updated
+        if (volunteerData.startTime !== undefined || volunteerData.endTime !== undefined) {
+            if (!updatedData.startTime || !updatedData.endTime) {
+                return res.status(400).json({ error: 'Start time and end time are required' });
+            }
+            
+            // Recalculate hours volunteered with cross-midnight handling
+            const start = moment(updatedData.startTime, 'HH:mm');
+            const end = moment(updatedData.endTime, 'HH:mm');
+            
+            let hoursVolunteered = end.diff(start, 'hours', true);
+            
+            // Handle cross-midnight scenarios
+            if (hoursVolunteered < 0) {
+                hoursVolunteered = hoursVolunteered + 24;
+            }
+            
+            // Validate reasonable hours
+            if (hoursVolunteered > 24) {
+                return res.status(400).json({ error: 'Invalid time range - hours cannot exceed 24' });
+            }
+            
+            updatedData.hoursVolunteered = hoursVolunteered;
         }
-        
-        // Validate reasonable hours
-        if (hoursVolunteered > 24) {
-            return res.status(400).json({ error: 'Invalid time range - hours cannot exceed 24' });
-        }
-        
-        volunteerData.hoursVolunteered = hoursVolunteered;
         
         const volunteer = await Volunteer.findByIdAndUpdate(
             req.params.id,
-            volunteerData,
+            updatedData,
             { new: true, runValidators: true }
         );
-        
-        if (!volunteer) {
-            return res.status(404).json({ error: 'Volunteer not found' });
-        }
         
         res.json(volunteer);
     } catch (error) {
@@ -252,7 +328,7 @@ app.delete('/api/volunteers/:id', async (req, res) => {
 // Generate PDF attendance table
 app.post('/api/generate-pdf', async (req, res) => {
     try {
-        const { eventId, eventName, date } = req.body;
+        const { eventId, eventName, date, type = 'full' } = req.body;
         
         // Input validation
         if (!eventId || !eventName || !date) {
@@ -288,7 +364,7 @@ app.post('/api/generate-pdf', async (req, res) => {
             size: 'A4'
         });
 
-        const filename = `attendance_${eventId}_${moment(date).format('YYYY-MM-DD')}.pdf`;
+        const filename = `volunteer-mastersheet-${type}-${eventId}_${moment(date).format('YYYY-MM-DD')}.pdf`;
         
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -303,111 +379,13 @@ app.post('/api/generate-pdf', async (req, res) => {
         
         doc.pipe(res);
 
-        // Title section
-        doc.fontSize(14).text('Volunteer Deployment for', 50, 50);
-        doc.fontSize(12).text(`${eventName}`, 250, 50);
-        
-        doc.text('Event Date', 50, 80);
-        doc.text(moment(date).format('DD/MM/YYYY'), 250, 80);
-        
-        doc.text('Reporting Time', 50, 100);
-        doc.text('9:00 AM', 250, 100);
-        
-        doc.text('Reporting Venue', 50, 120);
-        doc.text('Marina Bay Sands Expo, Convention Centre (Hall AB)', 250, 120);
-        
-        // Note section
-        doc.fontSize(10).text('Note: Service Hours (5½ Hours) are to be rounded to nearest half hour. E.g.(5hrs and 20 min = 5.5 hours, 5 hours and 5 mins = 5 hours)', 50, 150);
-
-        // Table headers matching your spreadsheet
-        const headers = [
-            'S/N', 'Name', 'Shift Start Time\n(hh:mm)', 'Shift End Time\n(hh:mm)', 
-            'Acknowledgement of\nReceipt of Meal Allowance\nOnly sign if received',
-            'Time In\n(hh:mm)', 'Sign In', 'Time Out\n(hh:mm)', 'Sign Out'
-        ];
-
-        // Calculate column widths (adjusted for better fit)
-        const pageWidth = doc.page.width - 100; // Account for margins
-        const colWidths = [40, 120, 80, 80, 120, 80, 80, 80, 80]; // Custom widths
-
-        let y = 180;
-        let x = 50;
-        
-        // Draw header row
-        doc.fontSize(9);
-        headers.forEach((header, i) => {
-            doc.rect(x, y, colWidths[i], 40).stroke();
-            // Center the text in the cell
-            const textX = x + (colWidths[i] / 2);
-            const lines = header.split('\n');
-            lines.forEach((line, lineIndex) => {
-                doc.text(line, textX - (doc.widthOfString(line) / 2), y + 8 + (lineIndex * 10), { 
-                    width: colWidths[i] - 4
-                });
-            });
-            x += colWidths[i];
-        });
-
-        y += 40;
-
-        // Draw data rows
-        volunteers.forEach((volunteer, index) => {
-            x = 50;
-            const rowData = [
-                volunteer.serialNumber.toString(),
-                volunteer.name,
-                volunteer.startTime,
-                volunteer.endTime,
-                '', // Meal allowance acknowledgement
-                '', // Time In
-                '', // Sign In
-                '', // Time Out
-                ''  // Sign Out
-            ];
-
-            rowData.forEach((data, i) => {
-                doc.rect(x, y, colWidths[i], 25).stroke();
-                if (data) {
-                    if (i === 1) { // Name column - left align
-                        doc.text(data, x + 5, y + 8, { 
-                            width: colWidths[i] - 10,
-                            height: 25
-                        });
-                    } else { // Other columns - center align
-                        const textX = x + (colWidths[i] / 2);
-                        doc.text(data, textX - (doc.widthOfString(data) / 2), y + 8, { 
-                            width: colWidths[i] - 4,
-                            height: 25
-                        });
-                    }
-                }
-                x += colWidths[i];
-            });
-
-            y += 25;
-
-            // Add new page if needed
-            if (y > doc.page.height - 100) {
-                doc.addPage();
-                y = 50;
-                x = 50;
-                
-                // Redraw headers on new page
-                doc.fontSize(9);
-                headers.forEach((header, i) => {
-                    doc.rect(x, y, colWidths[i], 40).stroke();
-                    const textX = x + (colWidths[i] / 2);
-                    const lines = header.split('\n');
-                    lines.forEach((line, lineIndex) => {
-                        doc.text(line, textX - (doc.widthOfString(line) / 2), y + 8 + (lineIndex * 10), { 
-                            width: colWidths[i] - 4
-                        });
-                    });
-                    x += colWidths[i];
-                });
-                y += 40;
-            }
-        });
+        if (type === 'summary') {
+            // Generate Summary PDF
+            generateSummaryPDF(doc, eventName, date, volunteers);
+        } else {
+            // Generate Full Details PDF
+            generateFullPDF(doc, eventName, date, volunteers);
+        }
 
         doc.end();
 
@@ -415,6 +393,185 @@ app.post('/api/generate-pdf', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Generate Summary PDF
+function generateSummaryPDF(doc, eventName, date, volunteers) {
+    // Title section
+    doc.fontSize(16).text('Volunteer Mastersheet - Summary', 50, 50, { align: 'center' });
+    doc.fontSize(12).text(`${eventName} (${volunteers[0].eventId})`, 50, 80, { align: 'center' });
+    doc.fontSize(10).text(`Date: ${moment(date).format('DD/MM/YYYY')}`, 50, 100, { align: 'center' });
+    doc.text(`Total Volunteers: ${volunteers.length}`, 50, 115, { align: 'center' });
+
+    // Table headers for summary
+    const headers = [
+        'S/N', 'Name', 'Email', 'Mobile', 'Role', 'Total Hours'
+    ];
+
+    // Calculate column widths
+    const colWidths = [40, 120, 150, 100, 100, 80];
+
+    let y = 140;
+    let x = 50;
+    
+    // Draw header row
+    doc.fontSize(10);
+    headers.forEach((header, i) => {
+        doc.rect(x, y, colWidths[i], 30).stroke();
+        const textX = x + (colWidths[i] / 2);
+        doc.text(header, textX - (doc.widthOfString(header) / 2), y + 10, { 
+            width: colWidths[i] - 4
+        });
+        x += colWidths[i];
+    });
+
+    y += 30;
+
+    // Draw data rows
+    volunteers.forEach((volunteer, index) => {
+        x = 50;
+        const rowData = [
+            volunteer.serialNumber.toString(),
+            volunteer.name,
+            volunteer.email,
+            volunteer.mobileNo,
+            volunteer.role,
+            volunteer.hoursVolunteered ? volunteer.hoursVolunteered.toString() : '0'
+        ];
+
+        rowData.forEach((data, i) => {
+            doc.rect(x, y, colWidths[i], 25).stroke();
+            if (i === 1 || i === 2) { // Name and Email - left align
+                doc.text(data, x + 5, y + 8, { 
+                    width: colWidths[i] - 10,
+                    height: 25
+                });
+            } else { // Other columns - center align
+                const textX = x + (colWidths[i] / 2);
+                doc.text(data, textX - (doc.widthOfString(data) / 2), y + 8, { 
+                    width: colWidths[i] - 4,
+                    height: 25
+                });
+            }
+            x += colWidths[i];
+        });
+
+        y += 25;
+
+        // Add new page if needed
+        if (y > doc.page.height - 100) {
+            doc.addPage();
+            y = 50;
+        }
+    });
+}
+
+// Generate Full Details PDF
+function generateFullPDF(doc, eventName, date, volunteers) {
+    // Title section
+    doc.fontSize(14).text('Volunteer Deployment for', 50, 50);
+    doc.fontSize(12).text(`${eventName}`, 250, 50);
+    
+    doc.text('Event Date', 50, 80);
+    doc.text(moment(date).format('DD/MM/YYYY'), 250, 80);
+    
+    doc.text('Reporting Time', 50, 100);
+    doc.text('9:00 AM', 250, 100);
+    
+    doc.text('Reporting Venue', 50, 120);
+    doc.text('Marina Bay Sands Expo, Convention Centre (Hall AB)', 250, 120);
+    
+    // Note section
+    doc.fontSize(10).text('Note: Service Hours (5½ Hours) are to be rounded to nearest half hour. E.g.(5hrs and 20 min = 5.5 hours, 5 hours and 5 mins = 5 hours)', 50, 150);
+
+    // Table headers matching your spreadsheet
+    const headers = [
+        'S/N', 'Name', 'Shift Start Time\n(hh:mm)', 'Shift End Time\n(hh:mm)', 
+        'Acknowledgement of\nReceipt of Meal Allowance\nOnly sign if received',
+        'Time In\n(hh:mm)', 'Sign In', 'Time Out\n(hh:mm)', 'Sign Out'
+    ];
+
+    // Calculate column widths (adjusted for better fit)
+    const colWidths = [40, 120, 80, 80, 120, 80, 80, 80, 80]; // Custom widths
+
+    let y = 180;
+    let x = 50;
+    
+    // Draw header row
+    doc.fontSize(9);
+    headers.forEach((header, i) => {
+        doc.rect(x, y, colWidths[i], 40).stroke();
+        // Center the text in the cell
+        const textX = x + (colWidths[i] / 2);
+        const lines = header.split('\n');
+        lines.forEach((line, lineIndex) => {
+            doc.text(line, textX - (doc.widthOfString(line) / 2), y + 8 + (lineIndex * 10), { 
+                width: colWidths[i] - 4
+            });
+        });
+        x += colWidths[i];
+    });
+
+    y += 40;
+
+    // Draw data rows
+    volunteers.forEach((volunteer, index) => {
+        x = 50;
+        const rowData = [
+            volunteer.serialNumber.toString(),
+            volunteer.name,
+            volunteer.startTime,
+            volunteer.endTime,
+            '', // Meal allowance acknowledgement
+            '', // Time In
+            '', // Sign In
+            '', // Time Out
+            ''  // Sign Out
+        ];
+
+        rowData.forEach((data, i) => {
+            doc.rect(x, y, colWidths[i], 25).stroke();
+            if (data) {
+                if (i === 1) { // Name column - left align
+                    doc.text(data, x + 5, y + 8, { 
+                        width: colWidths[i] - 10,
+                        height: 25
+                    });
+                } else { // Other columns - center align
+                    const textX = x + (colWidths[i] / 2);
+                    doc.text(data, textX - (doc.widthOfString(data) / 2), y + 8, { 
+                        width: colWidths[i] - 4,
+                        height: 25
+                    });
+                }
+            }
+            x += colWidths[i];
+        });
+
+        y += 25;
+
+        // Add new page if needed
+        if (y > doc.page.height - 100) {
+            doc.addPage();
+            y = 50;
+            x = 50;
+            
+            // Redraw headers on new page
+            doc.fontSize(9);
+            headers.forEach((header, i) => {
+                doc.rect(x, y, colWidths[i], 40).stroke();
+                const textX = x + (colWidths[i] / 2);
+                const lines = header.split('\n');
+                lines.forEach((line, lineIndex) => {
+                    doc.text(line, textX - (doc.widthOfString(line) / 2), y + 8 + (lineIndex * 10), { 
+                        width: colWidths[i] - 4
+                    });
+                });
+                x += colWidths[i];
+            });
+            y += 40;
+        }
+    });
+}
 
 // Get volunteers by event
 app.get('/api/volunteers/event/:eventId', async (req, res) => {
@@ -433,6 +590,122 @@ app.get('/api/volunteers/event/:eventId', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Generate Individual PDF Report
+app.post('/api/generate-individual-pdf', async (req, res) => {
+    try {
+        const { name, email, phone } = req.body;
+        
+        // Input validation
+        if (!name || !email || !phone) {
+            return res.status(400).json({ error: 'Name, email, and phone are required' });
+        }
+        
+        // Find all volunteers for this person
+        const volunteers = await Volunteer.find({
+            name: name,
+            email: email,
+            mobileNo: phone
+        }).sort({ date: 1 });
+        
+        if (volunteers.length === 0) {
+            return res.status(404).json({ error: 'No volunteer records found for this person' });
+        }
+        
+        // Generate individual PDF
+        generateIndividualPDF(volunteers, name, res);
+        
+    } catch (error) {
+        console.error('Error generating individual PDF:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Function to generate individual PDF report
+function generateIndividualPDF(volunteers, name, res) {
+    const doc = new PDFDocument({ margin: 50 });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Individual_Report_${name.replace(/\s+/g, '_')}.pdf"`);
+    
+    // Pipe the PDF to the response
+    doc.pipe(res);
+    
+    // Calculate statistics
+    const attendedEvents = volunteers.filter(v => v.attendance === 'attended');
+    const totalHours = attendedEvents.reduce((sum, v) => sum + (parseFloat(v.hoursVolunteered) || 0), 0);
+    
+    // Header
+    doc.fontSize(20).font('Helvetica-Bold').text('Individual Volunteer Report', { align: 'center' });
+    doc.moveDown();
+    
+    // Personal Information
+    doc.fontSize(14).font('Helvetica-Bold').text('Personal Information:', 50, doc.y);
+    doc.moveDown(0.5);
+    doc.fontSize(12).font('Helvetica')
+        .text(`Name: ${volunteers[0].name}`, 70)
+        .text(`Email: ${volunteers[0].email}`, 70)
+        .text(`Phone: ${volunteers[0].mobileNo}`, 70)
+        .text(`Total Events Registered: ${volunteers.length}`, 70)
+        .text(`Events Attended: ${attendedEvents.length}`, 70)
+        .text(`Total Hours Volunteered: ${totalHours.toFixed(1)} hours`, 70);
+    
+    doc.moveDown(1);
+    
+    // Events Table
+    doc.fontSize(14).font('Helvetica-Bold').text('Volunteer History:', 50, doc.y);
+    doc.moveDown(0.5);
+    
+    // Table headers
+    const tableTop = doc.y;
+    const headers = ['Event ID', 'Event Name', 'Date', 'Role', 'Hours', 'Status'];
+    const colWidths = [60, 120, 80, 100, 50, 80];
+    let xPos = 50;
+    
+    doc.fontSize(10).font('Helvetica-Bold');
+    headers.forEach((header, i) => {
+        doc.text(header, xPos, tableTop, { width: colWidths[i], align: 'center' });
+        xPos += colWidths[i];
+    });
+    
+    // Draw header line
+    doc.moveTo(50, tableTop + 15).lineTo(540, tableTop + 15).stroke();
+    
+    // Table rows
+    let yPos = tableTop + 25;
+    doc.font('Helvetica').fontSize(9);
+    
+    volunteers.forEach(volunteer => {
+        if (yPos > 750) { // New page if needed
+            doc.addPage();
+            yPos = 50;
+        }
+        
+        xPos = 50;
+        const rowData = [
+            volunteer.eventId,
+            volunteer.eventName,
+            new Date(volunteer.date).toLocaleDateString(),
+            volunteer.role,
+            volunteer.hoursVolunteered || '0',
+            volunteer.attendance || 'Pending'
+        ];
+        
+        rowData.forEach((data, i) => {
+            doc.text(data.toString(), xPos, yPos, { width: colWidths[i], align: 'center' });
+            xPos += colWidths[i];
+        });
+        
+        yPos += 20;
+    });
+    
+    // Footer
+    doc.fontSize(8).text(`Generated on ${new Date().toLocaleString()}`, 50, doc.page.height - 50);
+    
+    // Finalize the PDF
+    doc.end();
+}
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
