@@ -1,4 +1,65 @@
-<header>
-    <h1>Welcome to My Web Page</h1>
-    <p>This is a simple HTML document with a header section.</p>
-</header>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth Members RCYSG - Volunteer Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background-color: #0d6efd;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 10px;
+            display: inline-block;
+        }
+        .btn:hover {
+            background-color: #0b5ed7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Youth Members RCYSG</h1>
+        <h2>Volunteer Management System</h2>
+        <p>Welcome to the Volunteer Management System. This application helps you manage volunteer registrations, track attendance, and generate PDF reports.</p>
+        
+        <h3>To get started:</h3>
+        <ol style="text-align: left;">
+            <li>Install Node.js and MongoDB on your system</li>
+            <li>Open terminal/command prompt in this folder</li>
+            <li>Run: <code>npm install</code></li>
+            <li>Start MongoDB service</li>
+            <li>Run: <code>npm start</code></li>
+            <li>Open <a href="http://localhost:3000">http://localhost:3000</a></li>
+        </ol>
+        
+        <a href="#" onclick="alert('Please follow the setup instructions above first!')" class="btn">Start Application</a>
+        
+        <h3>Features:</h3>
+        <ul style="text-align: left;">
+            <li>✅ Add new volunteers with complete information</li>
+            <li>✅ Auto-fill existing volunteer data</li>
+            <li>✅ Generate PDF attendance sheets</li>
+            <li>✅ Search and manage volunteer records</li>
+            <li>✅ MongoDB integration for data storage</li>
+        </ul>
+    </div>
+</body>
+</html>
