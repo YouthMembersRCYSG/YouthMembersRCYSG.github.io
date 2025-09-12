@@ -29,17 +29,69 @@ app.get('/health', (req, res) => {
     res.json({ ok: true, time: new Date().toISOString() });
 });
 
-// MongoDB Connection (use MONGODB_URI from environment if provided)
+// MongoDB Connection with enhanced SSL and error handling
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/volunteer_management';
-mongoose.connect(mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
+
+const connectToMongoDB = async () => {
+    try {
+        const connectionOptions = {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        };
+
+        // Add SSL options for Atlas connections
+        if (mongoUri.includes('mongodb+srv') || mongoUri.includes('mongodb.net')) {
+            connectionOptions.ssl = true;
+            connectionOptions.sslValidate = false; // Temporarily disable SSL validation
+            connectionOptions.tlsAllowInvalidCertificates = true;
+            connectionOptions.retryWrites = true;
+            connectionOptions.w = 'majority';
+            connectionOptions.serverSelectionTimeoutMS = 5000;
+            connectionOptions.socketTimeoutMS = 45000;
+        }
+
+        await mongoose.connect(mongoUri, connectionOptions);
+        console.log('✅ Connected to MongoDB successfully');
+        
+        // Test the connection
+        await mongoose.connection.db.admin().ping();
+        console.log('✅ MongoDB ping successful');
+        
+    } catch (error) {
+        console.error('❌ MongoDB connection failed:', error.message);
+        
+        // Fallback to local MongoDB if Atlas fails
+        if (mongoUri.includes('mongodb+srv')) {
+            console.log('🔄 Attempting fallback to local MongoDB...');
+            try {
+                await mongoose.connect('mongodb://localhost:27017/volunteer_management', {
+                    useNewUrlParser: true,
+                    useUnifiedTopology: true
+                });
+                console.log('✅ Connected to local MongoDB as fallback');
+            } catch (localError) {
+                console.error('❌ Local MongoDB connection also failed:', localError.message);
+                console.log('ℹ️  Please ensure MongoDB is installed locally or fix Atlas connection');
+                process.exit(1);
+            }
+        } else {
+            process.exit(1);
+        }
+    }
+};
+
+// Initialize MongoDB connection
+connectToMongoDB();
 
 const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function() {
-    console.log('Connected to MongoDB');
+db.on('error', (error) => {
+    console.error('❌ MongoDB connection error:', error);
+});
+db.on('disconnected', () => {
+    console.log('⚠️  MongoDB disconnected');
+});
+db.on('reconnected', () => {
+    console.log('🔄 MongoDB reconnected');
 });
 
 // Volunteer Schema

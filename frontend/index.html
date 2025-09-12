@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Volunteer Management System</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <h1 id="brand">Volunteer Management System</h1>
+        <nav id="main-nav">
+          <a href="#home" class="nav-link active">Home</a>
+          <a href="#dashboard" class="nav-link">Dashboard</a>
+          <a href="#volunteers" class="nav-link">Volunteers</a>
+          <a href="#events" class="nav-link">Events</a>
+          <a href="#proposals" class="nav-link">Proposals</a>
+          <a href="#broadcasts" class="nav-link">Broadcasts</a>
+          <a href="#reporting" class="nav-link">Reports</a>
+        </nav>
+        <div class="header-actions">
+          <div class="user-menu" id="userMenu" style="display:none">
+            <span id="userName">User Name</span>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline dropdown-toggle" id="userDropdown">
+                <span id="userRole">Role</span>
+              </button>
+              <div class="dropdown-menu">
+                <a href="#" onclick="window.authManager?.showProfile()">Profile</a>
+                <a href="#" onclick="window.authManager?.changePassword()">Change Password</a>
+                <a href="#" onclick="window.authManager?.logout()">Logout</a>
+              </div>
+            </div>
+          </div>
+          <div class="auth-buttons" id="authButtons">
+            <button class="btn btn-outline" onclick="window.authManager?.showLogin()">Login</button>
+            <button class="btn btn-primary" onclick="window.authManager?.showRegister()">Register</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="app" class="container">
+      <section id="homeSection">
+        <div class="welcome-hero">
+          <h1>Welcome to Volunteer Management System</h1>
+          <p>Manage volunteers, events, and make a difference in your community.</p>
+          <div class="quick-stats" id="quickStats">
+            <div class="stat-card">
+              <span class="stat-number" id="totalVolunteers">-</span>
+              <span class="stat-label">Active Volunteers</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-number" id="upcomingEvents">-</span>
+              <span class="stat-label">Upcoming Events</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-number" id="totalHours">-</span>
+              <span class="stat-label">Total Hours</span>
+            </div>
+          </div>
+          <div class="quick-actions">
+            <button class="btn btn-primary" onclick="window.location.hash='#volunteers'">Manage Volunteers</button>
+            <button class="btn btn-primary" onclick="window.location.hash='#events'">Manage Events</button>
+            <button class="btn btn-outline" onclick="window.location.hash='#dashboard'">View Dashboard</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboardSection" style="display:none">
+        <div class="section-header">
+          <h2>Dashboard</h2>
+          <div class="section-actions">
+            <button class="btn btn-outline" onclick="window.dashboardManager?.refreshData()">Refresh</button>
+          </div>
+        </div>
+        <div id="dashboardRoot"></div>
+      </section>
+
+      <section id="volunteersSection" style="display:none">
+        <div class="section-header">
+          <h2>Volunteers</h2>
+          <div class="section-controls">
+            <input type="text" id="volunteerSearch" placeholder="Search volunteers..." class="search-input">
+            <select id="statusFilter" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="suspended">Suspended</option>
+            </select>
+            <button class="btn btn-primary" id="addVolunteerBtn">Add Volunteer</button>
+            <button class="btn btn-outline" id="exportVolunteersBtn">Export</button>
+          </div>
+        </div>
+        <div id="volunteersContainer"></div>
+      </section>
+
+      <section id="eventsSection" style="display:none">
+        <div class="section-header">
+          <h2>Events</h2>
+          <div class="section-controls">
+            <div class="view-toggles">
+              <button class="btn btn-sm view-toggle active" id="listViewBtn">List</button>
+              <button class="btn btn-sm view-toggle" id="calendarViewBtn">Calendar</button>
+            </div>
+            <select id="eventStatusFilter" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select id="eventCategoryFilter" class="filter-select">
+              <option value="all">All Categories</option>
+              <option value="community_service">Community Service</option>
+              <option value="fundraising">Fundraising</option>
+              <option value="education">Education</option>
+              <option value="environment">Environment</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="disaster_relief">Disaster Relief</option>
+              <option value="other">Other</option>
+            </select>
+            <button class="btn btn-primary" id="addEventBtn">Create Event</button>
+          </div>
+        </div>
+        <div id="eventsContainer"></div>
+      </section>
+
+      <section id="proposalsSection" style="display:none">
+        <div class="section-header">
+          <h2>Proposals</h2>
+          <div class="section-controls">
+            <select id="proposalStatusFilter" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="under_review">Under Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-primary" id="addProposalBtn">Submit Proposal</button>
+          </div>
+        </div>
+        <div id="proposalsContainer"></div>
+      </section>
+
+      <section id="broadcastsSection" style="display:none">
+        <div class="section-header">
+          <h2>Broadcasts</h2>
+          <div class="section-controls">
+            <select id="broadcastStatusFilter" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+            </select>
+            <button class="btn btn-primary" id="createBroadcastBtn">Create Broadcast</button>
+          </div>
+        </div>
+        <div id="broadcastsContainer"></div>
+      </section>
+
+      <section id="reportingSection" style="display:none">
+        <div class="section-header">
+          <h2>Reports</h2>
+          <div class="section-controls">
+            <select id="reportPeriod" class="filter-select">
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="quarter">This Quarter</option>
+              <option value="year">This Year</option>
+            </select>
+            <button class="btn btn-outline" id="exportReportBtn">Export Report</button>
+          </div>
+        </div>
+        <div id="reportingContainer"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">© YouthMembersRCYSG</div>
+    </footer>
+
+    <!-- Load core scripts in order -->
+    <script src="/js/config.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/volunteers-manager.js"></script>
+    <script src="/js/events-manager.js"></script>
+    <script src="/js/proposals-manager.js"></script>
+    <script src="/js/broadcasts-manager.js"></script>
+    <script src="/js/main.js"></script>
+  </body>
+</html>
